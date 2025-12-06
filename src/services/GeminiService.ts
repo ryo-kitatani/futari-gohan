@@ -102,7 +102,14 @@ export class GeminiService {
   }
 
   private async fetchUrlContent(url: string): Promise<string> {
+    // Webプラットフォームの場合はCORS制限のためエラー
+    const isWeb = typeof document !== 'undefined';
+    if (isWeb) {
+      throw new Error('WEB_NOT_SUPPORTED');
+    }
+
     try {
+      // モバイルの場合は直接アクセス
       const response = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; FutariGohan/1.0)',
@@ -112,19 +119,23 @@ export class GeminiService {
         throw new Error(`Failed to fetch URL: ${response.status}`);
       }
       const html = await response.text();
-      // HTMLからテキストを簡易抽出（scriptとstyleタグを除去）
-      const textContent = html
-        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 10000); // 最大10000文字
-      return textContent;
+      return this.extractTextFromHtml(html);
     } catch (error) {
       console.error('Error fetching URL:', error);
       throw new Error(`URLの取得に失敗しました: ${url}`);
     }
+  }
+
+  private extractTextFromHtml(html: string): string {
+    // HTMLからテキストを簡易抽出（scriptとstyleタグを除去）
+    const textContent = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 10000); // 最大10000文字
+    return textContent;
   }
 
   async recognizePhoto(imageBase64: string): Promise<PhotoRecognitionResult> {
@@ -220,6 +231,7 @@ ${userPrefsText}
     options?: {
       maxCookTime?: number;
       category?: string;
+      excludeRecipes?: string[];
     }
   ): Promise<RecipeSuggestion[]> {
     const userPrefsText = users
@@ -239,11 +251,31 @@ ${userPrefsText}
       conditions.push(`カテゴリは${options.category}`);
     }
 
+    // ランダム性を追加するための要素
+    const cuisineTypes = ['和食', '洋食', '中華', 'イタリアン', 'エスニック', '韓国料理', 'フレンチ', 'メキシカン'];
+    const mealTypes = ['定番料理', '時短料理', 'ヘルシー料理', 'ガッツリ系', 'おしゃれ料理', 'なつかしの味', '新感覚料理'];
+    const seasons = ['春向け', '夏向け', '秋向け', '冬向け', '季節を問わない'];
+
+    // ランダムにテーマを選択
+    const randomCuisine = cuisineTypes[Math.floor(Math.random() * cuisineTypes.length)];
+    const randomMealType = mealTypes[Math.floor(Math.random() * mealTypes.length)];
+    const randomSeason = seasons[Math.floor(Math.random() * seasons.length)];
+    const randomSeed = Math.floor(Math.random() * 10000);
+
+    // 除外するレシピ
+    const excludeText = options?.excludeRecipes && options.excludeRecipes.length > 0
+      ? `\n除外する料理（これらは提案しないで）: ${options.excludeRecipes.join(', ')}`
+      : '';
+
     const prompt = `以下のふたりの好みに合う料理を3つ提案してください。
 
 ${userPrefsText}
 
+今回のテーマ: ${randomCuisine}系の${randomMealType}（${randomSeason}）
+バリエーション番号: ${randomSeed}
+
 ${conditions.length > 0 ? `条件:\n- ${conditions.join('\n- ')}` : ''}
+${excludeText}
 
 以下のJSON形式で回答してください：
 {
@@ -253,7 +285,9 @@ ${conditions.length > 0 ? `条件:\n- ${conditions.join('\n- ')}` : ''}
       "emoji": "料理を表す絵文字1つ",
       "description": "簡単な説明",
       "cookTime": 調理時間(分、数値),
-      "ingredients": ["主な材料1", "材料2", ...],
+      "servings": 人数(数値、通常は2),
+      "ingredients": [{"name": "材料名", "amount": "分量（例：100g、大さじ1、1個など）"}, ...],
+      "steps": ["手順1", "手順2", ...],
       "matchScore": ふたりの平均マッチ度(0-100),
       "reason": "なぜこの料理をおすすめするか"
     }
@@ -263,6 +297,8 @@ ${conditions.length > 0 ? `条件:\n- ${conditions.join('\n- ')}` : ''}
 注意:
 - ふたりとも楽しめる料理を優先
 - アレルギー食材は絶対に含めない
+- 毎回異なる料理を提案すること（定番だけでなく珍しい料理も混ぜる）
+- テーマに沿いつつも、ふたりの好みを最優先
 - 日本語で回答してください`;
 
     const result = await this.callGemini(prompt);

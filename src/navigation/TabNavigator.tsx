@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Text } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator, BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { NavigationContainerRef } from '@react-navigation/native';
 import { HomeScreen } from '../screens/home/HomeScreen';
 import { PreferenceScreen } from '../screens/preference/PreferenceScreen';
+import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { CameraModal } from '../screens/camera/CameraModal';
 import { UrlImportModal } from '../screens/url/UrlImportModal';
 
@@ -14,6 +16,7 @@ const TabBarIcon = ({ name, focused }: { name: string; focused: boolean }) => {
     camera: { active: '📸', inactive: '📷' },
     url: { active: '🔗', inactive: '🔗' },
     preference: { active: '❤️', inactive: '🤍' },
+    settings: { active: '⚙️', inactive: '⚙️' },
   };
 
   const icon = icons[name];
@@ -30,6 +33,11 @@ const PlaceholderScreen = () => null;
 export const TabNavigator: React.FC = () => {
   const [showCamera, setShowCamera] = useState(false);
   const [showUrl, setShowUrl] = useState(false);
+  const navigationRef = useRef<any>(null);
+
+  const navigateToPreference = () => {
+    navigationRef.current?.navigate('Preference');
+  };
 
   return (
     <>
@@ -60,12 +68,16 @@ export const TabNavigator: React.FC = () => {
           name="Home"
           options={{ tabBarLabel: 'ホーム' }}
         >
-          {() => (
-            <HomeScreen
-              onOpenCamera={() => setShowCamera(true)}
-              onOpenUrl={() => setShowUrl(true)}
-            />
-          )}
+          {({ navigation }) => {
+            navigationRef.current = navigation;
+            return (
+              <HomeScreen
+                onOpenCamera={() => setShowCamera(true)}
+                onOpenUrl={() => setShowUrl(true)}
+                onNavigateToPreference={navigateToPreference}
+              />
+            );
+          }}
         </Tab.Screen>
         <Tab.Screen
           name="Camera"
@@ -93,6 +105,11 @@ export const TabNavigator: React.FC = () => {
           name="Preference"
           component={PreferenceScreen}
           options={{ tabBarLabel: '好み' }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ tabBarLabel: '設定' }}
         />
       </Tab.Navigator>
 

@@ -91,7 +91,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (saveAsRecipe: boolean = false) => {
     if (!recognized) return;
 
     setSaving(true);
@@ -99,20 +99,40 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
       const dbUser = await ServiceProvider.coupleService.getOrCreateDbUser();
       if (!dbUser?.coupleId) throw new Error('User not in couple');
 
-      await ServiceProvider.coupleService.createRecord({
-        coupleId: dbUser.coupleId,
-        dishName: recognized.dishName,
-        emoji: recognized.emoji,
-        photoRecognition: recognized,
-        cookedAt: new Date().toISOString(),
-        createdBy: dbUser.id,
-      });
+      if (saveAsRecipe) {
+        // レシピとして保存
+        await ServiceProvider.coupleService.createRecipe({
+          coupleId: dbUser.coupleId,
+          title: recognized.dishName,
+          emoji: recognized.emoji,
+          description: `写真から認識: ${recognized.cookingMethod || ''} ${recognized.category || ''}`.trim(),
+          sourceType: 'photo',
+          cookTime: recognized.cookTime,
+          calories: recognized.calories,
+          createdBy: dbUser.id,
+          ingredients: recognized.ingredients?.map((name: string) => ({ name, amount: '' })) || [],
+        });
 
-      Alert.alert('保存完了', '料理を記録しました！', [
-        { text: 'OK', onPress: handleClose },
-      ]);
+        Alert.alert('保存完了', 'レシピとして保存しました！', [
+          { text: 'OK', onPress: handleClose },
+        ]);
+      } else {
+        // 料理記録として保存
+        await ServiceProvider.coupleService.createRecord({
+          coupleId: dbUser.coupleId,
+          dishName: recognized.dishName,
+          emoji: recognized.emoji,
+          photoRecognition: recognized,
+          cookedAt: new Date().toISOString(),
+          createdBy: dbUser.id,
+        });
+
+        Alert.alert('保存完了', '料理を記録しました！', [
+          { text: 'OK', onPress: handleClose },
+        ]);
+      }
     } catch (error) {
-      console.error('Error saving record:', error);
+      console.error('Error saving:', error);
       Alert.alert('エラー', '保存に失敗しました');
     } finally {
       setSaving(false);
@@ -245,18 +265,37 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
                 </View>
               </View>
 
-              {/* Save button */}
-              <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                onPress={handleSave}
-                disabled={saving}
-              >
-                {saving ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.saveButtonText}>保存する</Text>
-                )}
-              </TouchableOpacity>
+              {/* Save buttons */}
+              <View style={styles.saveButtons}>
+                <TouchableOpacity
+                  style={[styles.recordButton, saving && styles.saveButtonDisabled]}
+                  onPress={() => handleSave(false)}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#FB923C" />
+                  ) : (
+                    <>
+                      <Text style={styles.recordButtonIcon}>📝</Text>
+                      <Text style={styles.recordButtonText}>記録する</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                  onPress={() => handleSave(true)}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="white" />
+                  ) : (
+                    <>
+                      <Text style={styles.saveButtonIcon}>📚</Text>
+                      <Text style={styles.saveButtonText}>レシピ保存</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
             </>
           )}
         </View>
@@ -481,18 +520,49 @@ const styles = StyleSheet.create({
   reactionEmoji: {
     fontSize: 24,
   },
+  saveButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  recordButton: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderWidth: 2,
+    borderColor: '#FB923C',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  recordButtonIcon: {
+    fontSize: 16,
+  },
+  recordButtonText: {
+    color: '#FB923C',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   saveButton: {
+    flex: 1,
     backgroundColor: '#FB923C',
     borderRadius: 12,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
   },
   saveButtonDisabled: {
     opacity: 0.6,
   },
+  saveButtonIcon: {
+    fontSize: 16,
+  },
   saveButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
 });

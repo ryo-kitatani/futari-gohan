@@ -60,9 +60,17 @@ export const UrlImportModal: React.FC<UrlImportModalProps> = ({ visible, onClose
         usersWithPrefs
       );
       setResult(parseResult);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error parsing URL:', error);
-      Alert.alert('エラー', 'URLの解析に失敗しました');
+      if (error?.message === 'WEB_NOT_SUPPORTED') {
+        Alert.alert(
+          'Webでは利用できません',
+          'URL取得機能はセキュリティ制限のため、Webブラウザでは利用できません。\n\niOSまたはAndroidアプリをご利用ください。',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('エラー', 'URLの解析に失敗しました');
+      }
     } finally {
       setLoading(false);
     }
@@ -169,10 +177,12 @@ export const UrlImportModal: React.FC<UrlImportModalProps> = ({ visible, onClose
 
                 {/* Ingredients */}
                 <View style={styles.ingredientsBox}>
-                  <Text style={styles.ingredientsLabel}>材料</Text>
-                  <Text style={styles.ingredientsText}>
-                    {result.ingredients?.map((i: any) => i.name).join('、')}
-                  </Text>
+                  <Text style={styles.ingredientsLabel}>材料（{result.servings || 2}人分）</Text>
+                  {result.ingredients?.map((i: any, idx: number) => (
+                    <Text key={idx} style={styles.ingredientItem}>
+                      • {i.name} {i.amount && `... ${i.amount}`}
+                    </Text>
+                  ))}
                 </View>
 
                 {/* Warnings */}
@@ -385,6 +395,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginBottom: 4,
+  },
+  ingredientItem: {
+    fontSize: 14,
+    color: '#374151',
+    marginBottom: 2,
   },
   ingredientsText: {
     fontSize: 14,

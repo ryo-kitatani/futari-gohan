@@ -7,38 +7,48 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PairingBanner } from '../../components/recipe/PairingBanner';
 import { RecipeCard } from '../../components/recipe/RecipeCard';
+import { RecipeDetailModal } from '../recipe/RecipeDetailModal';
+import { AiSuggestionModal } from '../recipe/AiSuggestionModal';
 import { ServiceProvider } from '../../services/ServiceProvider';
 import { GeminiService } from '../../services/GeminiService';
-import { CoupleUser, Recipe, Preference } from '../../interfaces/database';
+import { CoupleUser, Recipe, Preference, CookingRecord } from '../../interfaces/database';
 
 interface HomeScreenProps {
   onOpenCamera: () => void;
   onOpenUrl: () => void;
+  onNavigateToPreference?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl, onNavigateToPreference }) => {
   const [members, setMembers] = useState<CoupleUser[]>([]);
   const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [records, setRecords] = useState<CookingRecord[]>([]);
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [aiSuggestion, setAiSuggestion] = useState<any>(null);
+  const [previousSuggestions, setPreviousSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingAi, setLoadingAi] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [showAiDetail, setShowAiDetail] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
-      const [membersData, recipesData, prefsData] = await Promise.all([
+      const [membersData, recipesData, recordsData, prefsData] = await Promise.all([
         ServiceProvider.coupleService.getCoupleMembers(),
         ServiceProvider.coupleService.getRecipes(),
+        ServiceProvider.coupleService.getRecords(),
         ServiceProvider.coupleService.getPreferences(),
       ]);
       setMembers(membersData);
       setRecipes(recipesData);
+      setRecords(recordsData);
       setPreferences(prefsData);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -56,26 +66,32 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl 
       const usersWithPrefs = members.map((m) =>
         GeminiService.formatPreferencesForAI(m.id, m.name, preferences)
       );
-      const suggestions = await ServiceProvider.geminiService.suggestRecipes(usersWithPrefs);
+      const suggestions = await ServiceProvider.geminiService.suggestRecipes(
+        usersWithPrefs,
+        { excludeRecipes: previousSuggestions }
+      );
       if (suggestions.length > 0) {
-        setAiSuggestion(suggestions[0]);
+        const newSuggestion = suggestions[0];
+        setAiSuggestion(newSuggestion);
+        // 過去の提案リストに追加（最大10件まで保持）
+        setPreviousSuggestions((prev) => {
+          const updated = [...prev, newSuggestion.name];
+          return updated.slice(-10);
+        });
       }
     } catch (error) {
       console.error('Error loading AI suggestion:', error);
     } finally {
       setLoadingAi(false);
     }
-  }, [members, preferences, loadingAi]);
+  }, [members, preferences, loadingAi, previousSuggestions]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    if (members.length >= 2 && preferences.length > 0 && !aiSuggestion) {
-      loadAiSuggestion();
-    }
-  }, [members, preferences, aiSuggestion, loadAiSuggestion]);
+  // AI提案は自動生成しない（コスト削減のため）
+  // ユーザーが「おすすめを見る」ボタンを押した時だけ生成
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -115,7 +131,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl 
         </View>
 
         {/* Pairing Banner */}
-        {members.length > 0 && <PairingBanner members={members} />}
+        {members.length > 0 && <PairingBanner members={members} onPress={onNavigateToPreference} />}
 
         {/* AI Suggestion */}
         <View style={styles.section}>
@@ -163,7 +179,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl 
                 </Text>
 
                 <View style={styles.aiButtons}>
-                  <TouchableOpacity style={styles.aiPrimaryButton}>
+                  <TouchableOpacity
+                    style={styles.aiPrimaryButton}
+                    onPress={() => setShowAiDetail(true)}
+                  >
                     <Text style={styles.aiPrimaryButtonText}>これ作る！</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -176,13 +195,70 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl 
               </>
             ) : (
               <View style={styles.aiEmpty}>
-                <Text style={styles.aiEmptyText}>
-                  好みを登録するとAIがおすすめを提案します
-                </Text>
+                {members.length >= 2 ? (
+                  <>
+                    <Text style={styles.aiEmptyText}>
+                      ふたりの好みに合った料理を提案します
+                    </Text>
+                    <TouchableOpacity
+                      style={styles.aiGenerateButton}
+                      onPress={loadAiSuggestion}
+                    >
+                      <Text style={styles.aiGenerateButtonText}>✨ おすすめを見る</Text>
+                    </TouchableOpacity>
+                  </>
+                ) : (
+                  <Text style={styles.aiEmptyText}>
+                    ペアリングするとAIがおすすめを提案します
+                  </Text>
+                )}
               </View>
             )}
           </LinearGradient>
         </View>
+
+        {/* Cooking Records */}
+        {records.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>📸 最近の料理記録</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllButton}>すべて見る</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.recordsContainer}
+            >
+              {records.slice(0, 5).map((record, index) => {
+                const creator = members.find((m) => m.id === record.createdBy);
+                const date = record.cookedAt
+                  ? new Date(record.cookedAt).toLocaleDateString('ja-JP', {
+                      month: 'short',
+                      day: 'numeric',
+                    })
+                  : '';
+                return (
+                  <View key={record.id || `record-${index}`} style={styles.recordCard}>
+                    <View style={styles.recordEmoji}>
+                      <Text style={styles.recordEmojiText}>{record.emoji || '🍽️'}</Text>
+                    </View>
+                    <Text style={styles.recordName} numberOfLines={2}>
+                      {record.dishName}
+                    </Text>
+                    <View style={styles.recordMeta}>
+                      <Text style={styles.recordCreator}>
+                        {creator?.emoji || '👤'} {date}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* Saved Recipes */}
         <View style={styles.section}>
@@ -195,7 +271,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl 
 
           {recipes.length > 0 ? (
             recipes.slice(0, 5).map((recipe) => (
-              <RecipeCard key={recipe.id} recipe={recipe} />
+              <RecipeCard
+                key={recipe.id}
+                recipe={recipe}
+                onPress={() => setSelectedRecipe(recipe)}
+              />
             ))
           ) : (
             <View style={styles.emptyState}>
@@ -219,6 +299,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl 
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Recipe Detail Modal */}
+      <RecipeDetailModal
+        visible={!!selectedRecipe}
+        recipe={selectedRecipe}
+        members={members}
+        onClose={() => setSelectedRecipe(null)}
+      />
+
+      {/* AI Suggestion Modal */}
+      <AiSuggestionModal
+        visible={showAiDetail}
+        suggestion={aiSuggestion}
+        onClose={() => setShowAiDetail(false)}
+        onSaved={loadData}
+      />
     </SafeAreaView>
   );
 };
@@ -383,6 +479,19 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.9)',
     fontSize: 14,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  aiGenerateButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  aiGenerateButtonText: {
+    color: '#FB923C',
+    fontWeight: '600',
+    fontSize: 15,
   },
   emptyState: {
     alignItems: 'center',
@@ -419,5 +528,42 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: '#374151',
+  },
+  recordsContainer: {
+    gap: 12,
+  },
+  recordCard: {
+    width: 120,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  recordEmoji: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF7ED',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recordEmojiText: {
+    fontSize: 24,
+  },
+  recordName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  recordMeta: {
+    marginTop: 'auto',
+  },
+  recordCreator: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
 });
