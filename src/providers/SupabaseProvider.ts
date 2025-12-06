@@ -580,13 +580,21 @@ export class SupabaseProvider implements DatabaseProvider {
   }
 
   // Storage operations
-  async uploadPhoto(fileUri: string, coupleId: string): Promise<string> {
+  async uploadPhoto(fileUriOrBase64: string, coupleId: string, isBase64?: boolean): Promise<string> {
     const fileName = `${coupleId}/${Date.now()}.jpg`;
+    const isWeb = typeof document !== 'undefined';
 
-    // ファイルをbase64で読み込み
-    const base64 = await FileSystem.readAsStringAsync(fileUri, {
-      encoding: 'base64',
-    });
+    let base64: string;
+
+    if (isWeb || isBase64) {
+      // Webの場合、またはbase64が直接渡された場合
+      base64 = fileUriOrBase64;
+    } else {
+      // モバイルの場合：ファイルURIからbase64で読み込み
+      base64 = await FileSystem.readAsStringAsync(fileUriOrBase64, {
+        encoding: 'base64',
+      });
+    }
 
     // base64をUint8Arrayに変換
     const binaryString = atob(base64);

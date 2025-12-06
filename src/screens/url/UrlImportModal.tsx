@@ -205,7 +205,9 @@ export const UrlImportModal: React.FC<UrlImportModalProps> = ({ visible, onClose
                   <Text style={styles.scoresLabel}>好みとの一致度</Text>
                   <View style={styles.scoresBars}>
                     {members.slice(0, 2).map((m) => {
-                      const userScore = result.matchScores?.users?.[m.id];
+                      // 配列からユーザーIDで検索
+                      const userScoreArray = result.matchScores?.users || [];
+                      const userScore = userScoreArray.find?.((u: any) => u.userId === m.id);
                       const score = userScore?.score || 50;
                       const isLow = score < 50;
                       return (

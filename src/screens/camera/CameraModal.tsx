@@ -22,6 +22,7 @@ interface CameraModalProps {
 export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) => {
   const [members, setMembers] = useState<CoupleUser[]>([]);
   const [image, setImage] = useState<string | null>(null);
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [recognizing, setRecognizing] = useState(false);
   const [recognized, setRecognized] = useState<any>(null);
   const [selectedMember, setSelectedMember] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
 
     if (!result.canceled && result.assets[0]) {
       setImage(result.assets[0].uri);
+      setImageBase64(result.assets[0].base64 || null);
       recognizePhoto(result.assets[0].base64!);
     }
   };
@@ -74,6 +76,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
 
     if (!result.canceled && result.assets[0]) {
       setImage(result.assets[0].uri);
+      setImageBase64(result.assets[0].base64 || null);
       recognizePhoto(result.assets[0].base64!);
     }
   };
@@ -113,15 +116,16 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
           ingredients: recognized.ingredients?.map((name: string) => ({ name, amount: '' })) || [],
         });
 
-        Alert.alert('保存完了', 'レシピとして保存しました！', [
-          { text: 'OK', onPress: handleClose },
-        ]);
+        Alert.alert('保存完了', 'レシピとして保存しました！');
+        handleClose();
       } else {
         // 画像をアップロード
         let photoUrl: string | undefined;
-        if (image) {
+        const isWeb = typeof document !== 'undefined';
+        const uploadData = isWeb ? imageBase64 : image;
+        if (uploadData) {
           try {
-            photoUrl = await ServiceProvider.coupleService.uploadPhoto(image);
+            photoUrl = await ServiceProvider.coupleService.uploadPhoto(uploadData);
           } catch (uploadError) {
             console.error('Photo upload failed:', uploadError);
             // アップロード失敗しても記録は保存する
@@ -139,9 +143,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
           createdBy: dbUser.id,
         });
 
-        Alert.alert('保存完了', '料理を記録しました！', [
-          { text: 'OK', onPress: handleClose },
-        ]);
+        Alert.alert('保存完了', '料理を記録しました！');
+        handleClose();
       }
     } catch (error) {
       console.error('Error saving:', error);
@@ -153,6 +156,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
 
   const handleClose = useCallback(() => {
     setImage(null);
+    setImageBase64(null);
     setRecognized(null);
     setSelectedMember(null);
     setSelectedReaction('😍');
