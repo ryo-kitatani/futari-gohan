@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ふたりごはん - AIでデザインする未来の働き方</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reset.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+    <style>
+        :root {
+            --r-background-color: #FFF5F0;
+            --r-main-color: #374151;
+            --r-heading-color: #FB923C;
+            --r-link-color: #FB923C;
+        }
+        .reveal {
+            font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+            font-size: 36px;
+            background: linear-gradient(135deg, #FFF5F0 0%, #FFF0F5 50%, #FFFFFF 100%);
+        }
+        .reveal .slides {
+            text-align: center;
+        }
+        .reveal .slides section {
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .reveal h1, .reveal h2, .reveal h3 {
+            text-transform: none;
+            font-weight: 700;
+            margin-bottom: 0.5em;
+            color: #374151;
+        }
+        .reveal h1 {
+            font-size: 2.2em;
+        }
+        .reveal h2 {
+            font-size: 1.6em;
+            color: #FB923C;
+        }
+        .reveal h3 {
+            font-size: 1.1em;
+            margin: 0.3em 0;
+            color: #6B7280;
+        }
+        .reveal p {
+            margin: 0.4em 0;
+            color: #374151;
+        }
+        .gradient-text {
+            background: linear-gradient(135deg, #FB923C, #F472B6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .highlight {
+            color: #FB923C;
+        }
+        .reveal ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .reveal li {
+            margin: 0.4em 0;
+            padding-left: 1.2em;
+            position: relative;
+            font-size: 1em;
+            color: #374151;
+        }
+        .reveal li::before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #FB923C;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.6em;
+            text-align: left;
+            font-size: 0.75em;
+        }
+        .feature-card {
+            background: #FFF7ED;
+            padding: 0.6em;
+            border-radius: 8px;
+            border-left: 3px solid #FB923C;
+            box-shadow: 0 2px 8px rgba(251,146,60,0.1);
+        }
+        .feature-card p {
+            margin: 0.2em 0;
+            font-size: 0.85em;
+        }
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.6em;
+            margin-top: 0.5em;
+        }
+        .tech-badge {
+            background: linear-gradient(135deg, #FB923C, #F472B6);
+            color: white;
+            padding: 0.4em 0.8em;
+            border-radius: 15px;
+            font-size: 0.65em;
+        }
+        .problem-box {
+            background: #FEF2F2;
+            border: 2px solid #F87171;
+            border-radius: 8px;
+            padding: 0.6em;
+            margin: 0.5em 0;
+        }
+        .solution-box {
+            background: #D1FAE5;
+            border: 2px solid #10B981;
+            border-radius: 8px;
+            padding: 0.6em;
+            margin: 0.5em 0;
+        }
+        .emoji-large {
+            font-size: 2em;
+            margin: 0.2em;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5em;
+            align-items: center;
+            font-size: 0.85em;
+        }
+        .two-column > div {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .two-column > div:has(ul) {
+            align-items: flex-start;
+            text-align: left;
+        }
+        .screenshot {
+            height: 580px;
+            max-width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(251,146,60,0.2);
+            object-fit: contain;
+        }
+        .stacked-screenshots {
+            position: relative;
+            height: 550px;
+            width: 100%;
+        }
+        .stacked-screenshots .screenshot-back {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 480px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(251,146,60,0.2);
+            object-fit: contain;
+            z-index: 1;
+        }
+        .stacked-screenshots .screenshot-front {
+            position: absolute;
+            left: 200px;
+            top: 150px;
+            height: 480px;
+            border-radius: 15px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+            object-fit: contain;
+            z-index: 2;
+        }
+        /* 3枚構成用 */
+        .stacked-screenshots-3 {
+            position: relative;
+            height: 580px;
+            width: 100%;
+        }
+        .stacked-screenshots-3 .screenshot-1 {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 420px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(251,146,60,0.2);
+            object-fit: contain;
+            z-index: 1;
+        }
+        .stacked-screenshots-3 .screenshot-2 {
+            position: absolute;
+            left: 180px;
+            top: 120px;
+            height: 420px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+            object-fit: contain;
+            z-index: 2;
+        }
+        .stacked-screenshots-3 .screenshot-3 {
+            position: absolute;
+            left: 360px;
+            top: 240px;
+            height: 420px;
+            border-radius: 15px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+            object-fit: contain;
+            z-index: 3;
+        }
+        .architecture-box {
+            background: #FFF7ED;
+            border-radius: 8px;
+            padding: 0.5em;
+            margin: 0.3em 0;
+            text-align: center;
+            font-size: 0.85em;
+            border: 1px solid #FED7AA;
+        }
+        .arrow-down {
+            font-size: 1em;
+            color: #FB923C;
+            margin: 0;
+            line-height: 1;
+        }
+        .wellbeing-point {
+            font-size: 0.95em;
+            margin: 0.5em 0;
+        }
+        .demo-note {
+            background: #FFF7ED;
+            border: 2px solid #FED7AA;
+            border-radius: 8px;
+            padding: 0.5em;
+            font-size: 0.7em;
+            margin-top: 0.5em;
+        }
+        .compact-flow p {
+            margin: 0.2em 0;
+            font-size: 0.9em;
+        }
+        .compact-flow .arrow-down {
+            font-size: 0.8em;
+        }
+        /* 横並びフロー */
+        .flow-horizontal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3em;
+            flex-wrap: nowrap;
+            margin-top: 1em;
+        }
+        .flow-box {
+            background: #FFF7ED;
+            border: 2px solid #FED7AA;
+            border-radius: 10px;
+            padding: 0.6em 0.8em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.3em;
+            min-width: 80px;
+        }
+        .flow-icon {
+            font-size: 1.5em;
+        }
+        .flow-text {
+            font-size: 0.6em;
+            color: #374151;
+            font-weight: 600;
+        }
+        .flow-arrow {
+            font-size: 1.2em;
+            color: #FB923C;
+            font-weight: bold;
+        }
+        .title-slide-subtitle {
+            color: #6B7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="reveal">
+        <div class="slides">
+
+            <!-- タイトルスライド -->
+            <section>
+                <p style="font-size: 2.5em; margin-bottom: 0.2em;">🍳🤖</p>
+                <h1 class="gradient-text">ふたりごはん</h1>
+                <p style="font-size: 1.1em; color: #6B7280; margin-top: 0.3em;">
+                    <span style="background: linear-gradient(135deg, #FB923C, #F472B6); color: white; padding: 0.2em 0.6em; border-radius: 20px; font-size: 0.85em;">Powered by Gemini AI</span>
+                </p>
+                <p style="font-size: 1.2em; margin-top: 1em;">共働きカップルの食卓革命</p>
+                <p style="margin-top: 1.5em; font-size: 0.75em; color: #9CA3AF;">
+                    AIでデザインする「未来の働き方」ハッカソン
+                </p>
+            </section>
+
+            <!-- 課題提起 -->
+            <section>
+                <h2>共働き時代の「食」の課題</h2>
+                <div class="emoji-large">😩</div>
+                <div class="problem-box">
+                    <ul>
+                        <li>仕事で疲れて「今日何食べる？」が面倒</li>
+                        <li>お互いの好みが違って献立が決まらない</li>
+                        <li>せっかく作っても相手の反応がわからない</li>
+                        <li>「また同じもの...」のマンネリ化</li>
+                    </ul>
+                </div>
+                <p class="fragment" style="font-size: 1.2em;">
+                    <span class="highlight">食の悩み</span> = <span class="highlight">ウェルビーイング低下</span>
+                </p>
+            </section>
+
+            <!-- ソリューション -->
+            <section>
+                <h2>AIで解決する</h2>
+                <div class="emoji-large">🍳 + 🤖 = 💕</div>
+                <div class="solution-box">
+                    <p style="font-size: 1.3em; margin: 0;">
+                        <strong>ふたりの好みをAIが学習</strong><br>
+                        最適なレシピを自動提案
+                    </p>
+                </div>
+                <p class="fragment" style="font-size: 1.1em;">
+                    「今日何食べる？」から解放される未来
+                </p>
+            </section>
+
+            <!-- 未来の働き方との接続 -->
+            <section>
+                <h2>未来の働き方 × 食</h2>
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <h3>⏰ 時短</h3>
+                        <p>献立決めの時間をゼロに</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>💬 コミュニケーション</h3>
+                        <p>料理を通じた絆づくり</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>🧠 意思決定の削減</h3>
+                        <p>決断疲れからの解放</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3>😊 ウェルビーイング</h3>
+                        <p>食生活の質向上</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- デモ：ペアリング -->
+            <section>
+                <h2>1. ペアリング機能</h2>
+                <div class="two-column">
+                    <div>
+                        <ul>
+                            <li>招待コードでパートナーと接続</li>
+                            <li>ふたりのデータを共有</li>
+                            <li>Google認証で簡単ログイン</li>
+                        </ul>
+                        <div class="demo-note">
+                            📱 実際の画面をご覧ください
+                        </div>
+                    </div>
+                    <div>
+                        <img src="./screenshots/pairing.png" class="screenshot" alt="ペアリング画面">
+                    </div>
+                </div>
+            </section>
+
+            <!-- デモ：好み登録 -->
+            <section>
+                <h2>2. 食の好み管理</h2>
+                <div class="two-column">
+                    <div>
+                        <img src="./screenshots/preference.png" class="screenshot" alt="好み登録画面">
+                    </div>
+                    <div style="display: flex; flex-direction: column; justify-content: center; text-align: left;">
+                        <ul>
+                            <li>好きな食材 ❤️</li>
+                            <li>嫌いな食材 💔</li>
+                            <li>アレルギー ⚠️</li>
+                        </ul>
+                        <p class="fragment" style="margin-top: 1em;">
+                            → AIが<span class="highlight">ふたりの好み</span>を学習
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- デモ：AIレシピ提案 -->
+            <section>
+                <h2>3. AIレシピ提案</h2>
+                <div class="two-column">
+                    <div>
+                        <ul>
+                            <li>ふたりの好みに基づいた提案</li>
+                            <li>季節・料理タイプを考慮</li>
+                            <li>相性スコアを表示</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <img src="./screenshots/ai-suggest.png" class="screenshot" alt="AI提案画面">
+                    </div>
+                </div>
+            </section>
+
+            <!-- デモ：URL解析 -->
+            <section>
+                <h2>4. レシピURL解析</h2>
+                <div class="two-column" style="gap: 3em;">
+                    <div class="stacked-screenshots-3">
+                        <img src="./screenshots/url-import.png" class="screenshot-1" alt="URL入力画面">
+                        <img src="./screenshots/url-processing.png" class="screenshot-2" alt="解析中画面">
+                        <img src="./screenshots/url-result.png" class="screenshot-3" alt="解析結果画面">
+                    </div>
+                    <div style="padding-left: 2em;">
+                        <ul>
+                            <li>レシピサイトのURLを入力</li>
+                            <li>AIが自動で解析・構造化</li>
+                            <li>材料・手順を抽出</li>
+                            <li>ふたりとの相性を即座に計算</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- デモ：料理記録 -->
+            <section>
+                <h2>5. 料理記録 & リアクション</h2>
+                <div class="two-column">
+                    <div>
+                        <ul>
+                            <li>📸 料理を撮影</li>
+                            <li>🤖 AIが自動認識<br>
+                                <span style="font-size: 0.75em; color: #aaa; margin-left: 0.5em;">→ 料理名・材料・カロリー</span>
+                            </li>
+                            <li>💬 パートナーがリアクション</li>
+                        </ul>
+                    </div>
+                    <div class="stacked-screenshots">
+                        <img src="./screenshots/camera.png" class="screenshot-back" alt="カメラ画面">
+                        <img src="./screenshots/camera-result.png" class="screenshot-front" alt="記録結果画面">
+                    </div>
+                </div>
+            </section>
+
+            <!-- AI活用のポイント -->
+            <section>
+                <h2>🤖 AIの活用ポイント</h2>
+                <div style="text-align: left; max-width: 950px; margin: 0 auto; font-size: 0.85em;">
+                    <div class="feature-card" style="margin: 0.6em 0;">
+                        <h3>1. レシピページ解析</h3>
+                        <p>任意のレシピサイトからタイトル・材料・手順を構造化抽出</p>
+                        <p style="font-size: 0.8em; color: #6B7280; margin-top: 0.3em;">
+                            📌 HTML取得 → テキスト抽出（10000字制限）→ <strong>Gemini 2.0 Flash</strong> + <strong>responseSchema</strong> で型安全な出力
+                        </p>
+                    </div>
+                    <div class="feature-card" style="margin: 0.6em 0;">
+                        <h3>2. 写真認識（マルチモーダル）</h3>
+                        <p>料理写真から品名・材料・カロリーを推定</p>
+                        <p style="font-size: 0.8em; color: #6B7280; margin-top: 0.3em;">
+                            📌 画像をBase64で送信 → <strong>Gemini 2.0 Flash</strong> + <strong>responseSchema</strong>（JSON Schema定義）で型安全な構造化出力
+                        </p>
+                    </div>
+                    <div class="feature-card" style="margin: 0.6em 0;">
+                        <h3>3. パーソナライズ提案</h3>
+                        <p>ふたりの好み・アレルギー・履歴を考慮した最適レシピ生成</p>
+                        <p style="font-size: 0.8em; color: #6B7280; margin-top: 0.3em;">
+                            📌 好み情報埋め込み + ランダムテーマ + 除外リスト → <strong>responseSchema</strong> で材料・手順を構造化出力
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 技術構成 -->
+            <section>
+                <h2>技術構成</h2>
+                <div class="tech-stack">
+                    <span class="tech-badge">React Native</span>
+                    <span class="tech-badge">Expo</span>
+                    <span class="tech-badge">TypeScript</span>
+                    <span class="tech-badge">Clerk Auth</span>
+                    <span class="tech-badge">Supabase</span>
+                    <span class="tech-badge">Google Gemini API</span>
+                </div>
+                <div style="margin-top: 2em;">
+                    <div class="architecture-box">画面層 (Screens)</div>
+                    <div class="arrow-down">↓</div>
+                    <div class="architecture-box">サービス層 (CoupleService, GeminiService)</div>
+                    <div class="arrow-down">↓</div>
+                    <div class="architecture-box">プロバイダー層 (Supabase, Clerk)</div>
+                </div>
+            </section>
+
+            <!-- ユーザーフロー -->
+            <section>
+                <h2>ユーザーフロー</h2>
+                <div class="flow-horizontal">
+                    <div class="flow-box">
+                        <span class="flow-icon">🔐</span>
+                        <span class="flow-text">ログイン</span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-box">
+                        <span class="flow-icon">👫</span>
+                        <span class="flow-text">ペアリング</span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-box">
+                        <span class="flow-icon">❤️</span>
+                        <span class="flow-text">好み登録</span>
+                    </div>
+                </div>
+                <p style="margin: 0.8em 0; font-size: 0.9em; color: #FB923C;">▼ 日常利用</p>
+                <div class="flow-horizontal">
+                    <div class="flow-box">
+                        <span class="flow-icon">🔗</span>
+                        <span class="flow-text">URL解析</span>
+                    </div>
+                    <div class="flow-box">
+                        <span class="flow-icon">🤖</span>
+                        <span class="flow-text">AI提案</span>
+                    </div>
+                    <div class="flow-box">
+                        <span class="flow-icon">📸</span>
+                        <span class="flow-text">写真から追加</span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-box">
+                        <span class="flow-icon">🍳</span>
+                        <span class="flow-text">料理・記録</span>
+                    </div>
+                    <span class="flow-arrow">→</span>
+                    <div class="flow-box">
+                        <span class="flow-icon">💬</span>
+                        <span class="flow-text">共有・反応</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 未来ビジョン -->
+            <section>
+                <h2>🚀 目指す未来</h2>
+                <div class="wellbeing-point">
+                    🏠 仕事から帰って「今日何食べる？」の悩みゼロ
+                </div>
+                <div class="wellbeing-point">
+                    👫 ふたりの食卓がもっと楽しく
+                </div>
+                <div class="wellbeing-point">
+                    ⚡ 決断疲れから解放、本当に大切なことに時間を
+                </div>
+                <div class="wellbeing-point">
+                    💪 健康的な食生活でパフォーマンス向上
+                </div>
+            </section>
+
+            <!-- まとめ -->
+            <section>
+                <p style="font-size: 2em; margin-bottom: 0.2em;">🍳🤖</p>
+                <h1 class="gradient-text">ふたりごはん</h1>
+                <p style="font-size: 1.1em; margin: 0.5em 0;">
+                    AIが支える、共働きカップルの食卓革命
+                </p>
+                <div style="margin-top: 0.8em; display: flex; justify-content: center; gap: 1.5em; flex-wrap: wrap;">
+                    <span style="font-size: 0.85em;">🍳 献立の悩みゼロ</span>
+                    <span style="font-size: 0.85em;">💕 食で絆づくり</span>
+                    <span style="font-size: 0.85em;">🤖 AIパーソナライズ</span>
+                </div>
+                <p style="margin-top: 1.2em; font-size: 1em;" class="highlight">
+                    ありがとうございました！
+                </p>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+    <script>
+        Reveal.initialize({
+            hash: true,
+            slideNumber: true,
+            transition: 'slide',
+            backgroundTransition: 'fade',
+            width: 1200,
+            height: 800,
+            margin: 0.08,
+            minScale: 0.5,
+            maxScale: 2.0,
+            center: true,
+        });
+    </script>
+</body>
+</html>

@@ -114,6 +114,23 @@ export class CoupleService {
     return this.database.createRecord(recordData);
   }
 
+  // Reaction management
+  async addReaction(recordId: string, emoji: string, comment?: string) {
+    const dbUser = await this.getOrCreateDbUser();
+    if (!dbUser) throw new Error('User not authenticated');
+
+    return this.database.addReaction({
+      recordId,
+      userId: dbUser.id,
+      emoji,
+      comment,
+    });
+  }
+
+  async getReactions(recordId: string) {
+    return this.database.getReactions(recordId);
+  }
+
   // Photo upload
   async uploadPhoto(fileUri: string): Promise<string> {
     const dbUser = await this.getOrCreateDbUser();

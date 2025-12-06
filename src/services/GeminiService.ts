@@ -50,7 +50,7 @@ export class GeminiService {
     this.apiKey = apiKey;
   }
 
-  private async callGemini(prompt: string, imageBase64?: string): Promise<any> {
+  private async callGemini(prompt: string, imageBase64?: string, responseSchema?: object): Promise<any> {
     if (!this.apiKey) {
       throw new Error('Gemini API key is not configured');
     }
@@ -66,6 +66,14 @@ export class GeminiService {
       });
     }
 
+    const generationConfig: any = {
+      responseMimeType: 'application/json',
+    };
+
+    if (responseSchema) {
+      generationConfig.responseSchema = responseSchema;
+    }
+
     const response = await fetch(`${GEMINI_URL}?key=${this.apiKey}`, {
       method: 'POST',
       headers: {
@@ -73,9 +81,7 @@ export class GeminiService {
       },
       body: JSON.stringify({
         contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-        },
+        generationConfig,
       }),
     });
 
@@ -102,23 +108,33 @@ export class GeminiService {
   }
 
   private async fetchUrlContent(url: string): Promise<string> {
-    // Webプラットフォームの場合はCORS制限のためエラー
     const isWeb = typeof document !== 'undefined';
-    if (isWeb) {
-      throw new Error('WEB_NOT_SUPPORTED');
-    }
 
     try {
-      // モバイルの場合は直接アクセス
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; FutariGohan/1.0)',
-        },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch URL: ${response.status}`);
+      let html: string;
+
+      if (isWeb) {
+        // Web環境ではCORSプロキシを使用
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+        const response = await fetch(proxyUrl);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch URL: ${response.status}`);
+        }
+        const data = await response.json();
+        html = data.contents;
+      } else {
+        // モバイルの場合は直接アクセス
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; FutariGohan/1.0)',
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch URL: ${response.status}`);
+        }
+        html = await response.text();
       }
-      const html = await response.text();
+
       return this.extractTextFromHtml(html);
     } catch (error) {
       console.error('Error fetching URL:', error);
@@ -139,20 +155,26 @@ export class GeminiService {
   }
 
   async recognizePhoto(imageBase64: string): Promise<PhotoRecognitionResult> {
-    const prompt = `この料理の写真を分析してください。
-以下のJSON形式で回答してください：
-{
-  "dishName": "料理名",
-  "emoji": "料理を表す絵文字1つ",
-  "ingredients": ["推定される材料1", "材料2", ...],
-  "calories": 推定カロリー(数値),
-  "cookingMethod": "調理法(焼く/煮る/揚げる/蒸す/生など)",
-  "category": "主菜/副菜/汁物/デザート/その他のいずれか"
-}
+    const prompt = `この料理の写真を分析してください。料理名、材料、カロリー、調理法、カテゴリを推定してください。日本語で回答してください。`;
 
-日本語で回答してください。`;
+    const schema = {
+      type: 'object',
+      properties: {
+        dishName: { type: 'string', description: '料理名' },
+        emoji: { type: 'string', description: '料理を表す絵文字1つ' },
+        ingredients: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '推定される材料リスト',
+        },
+        calories: { type: 'integer', description: '推定カロリー（kcal）' },
+        cookingMethod: { type: 'string', description: '調理法（焼く/煮る/揚げる/蒸す/生など）' },
+        category: { type: 'string', description: '主菜/副菜/汁物/デザート/その他のいずれか' },
+      },
+      required: ['dishName', 'emoji', 'ingredients'],
+    };
 
-    return this.callGemini(prompt, imageBase64);
+    return this.callGemini(prompt, imageBase64, schema);
   }
 
   async parseRecipeUrl(
@@ -172,7 +194,7 @@ export class GeminiService {
 
     const userPrefsText = users
       .map(
-        (u) => `${u.name}の好み:
+        (u) => `${u.name}(ID: ${u.id})の好み:
 - 好き: ${u.preferences.likes.join(', ') || 'なし'}
 - 嫌い: ${u.preferences.dislikes.join(', ') || 'なし'}
 - アレルギー: ${u.preferences.allergies.join(', ') || 'なし'}`
@@ -180,42 +202,81 @@ export class GeminiService {
       .join('\n\n');
 
     const prompt = `以下のレシピページの内容を解析してください。
+アレルギー食材が含まれている場合は必ずwarningsに追加してください。
+マッチ度は好きな食材が多いほど高く、嫌いな食材があると低くなります。
+日本語で回答してください。
 
 【レシピページの内容】
 ${urlContent}
 
 【ユーザーの好み】
-${userPrefsText}
+${userPrefsText}`;
 
-以下のJSON形式で回答してください：
-{
-  "title": "レシピ名",
-  "emoji": "料理を表す絵文字1つ",
-  "description": "簡単な説明",
-  "ingredients": [{"name": "材料名", "amount": "分量"}, ...],
-  "steps": ["手順1", "手順2", ...],
-  "cookTime": 調理時間(分、数値),
-  "servings": 人数(数値),
-  "calories": 推定カロリー(数値),
-  "matchScores": {
-    "total": 全体のマッチ度(0-100),
-    "users": {
-      "${users[0]?.id || 'user1'}": {"score": スコア, "reason": "理由"},
-      "${users[1]?.id || 'user2'}": {"score": スコア, "reason": "理由"}
-    }
-  },
-  "warnings": [
-    {"userId": "ユーザーID", "userName": "ユーザー名", "item": "食材名", "type": "allergy または dislike"}
-  ]
-}
+    const schema = {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'レシピ名' },
+        emoji: { type: 'string', description: '料理を表す絵文字1つ' },
+        description: { type: 'string', description: '簡単な説明' },
+        ingredients: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: '材料名' },
+              amount: { type: 'string', description: '分量' },
+            },
+            required: ['name', 'amount'],
+          },
+          description: '材料リスト',
+        },
+        steps: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '調理手順',
+        },
+        cookTime: { type: 'integer', description: '調理時間（分）' },
+        servings: { type: 'integer', description: '人数' },
+        calories: { type: 'integer', description: '推定カロリー（kcal）' },
+        matchScores: {
+          type: 'object',
+          properties: {
+            total: { type: 'integer', description: '全体のマッチ度（0-100）' },
+            users: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  userId: { type: 'string', description: 'ユーザーID' },
+                  score: { type: 'integer', description: 'マッチ度スコア（0-100）' },
+                  reason: { type: 'string', description: 'スコアの理由' },
+                },
+                required: ['userId', 'score', 'reason'],
+              },
+              description: '各ユーザーのマッチ度',
+            },
+          },
+          required: ['total', 'users'],
+        },
+        warnings: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              userId: { type: 'string', description: 'ユーザーID' },
+              userName: { type: 'string', description: 'ユーザー名' },
+              item: { type: 'string', description: '食材名' },
+              type: { type: 'string', description: 'allergy または dislike' },
+            },
+            required: ['userId', 'userName', 'item', 'type'],
+          },
+          description: 'アレルギーや嫌いな食材の警告',
+        },
+      },
+      required: ['title', 'emoji', 'ingredients', 'steps', 'matchScores', 'warnings'],
+    };
 
-注意:
-- アレルギー食材が含まれている場合は必ずwarningsに追加
-- マッチ度は好きな食材が多いほど高く、嫌いな食材があると低くなる
-- warningsがない場合は空配列[]を返す
-- 日本語で回答してください`;
-
-    return this.callGemini(prompt);
+    return this.callGemini(prompt, undefined, schema);
   }
 
   async suggestRecipes(
@@ -268,6 +329,9 @@ ${userPrefsText}
       : '';
 
     const prompt = `以下のふたりの好みに合う料理を3つ提案してください。
+ふたりとも楽しめる料理を優先し、アレルギー食材は絶対に含めないでください。
+毎回異なる料理を提案してください（定番だけでなく珍しい料理も混ぜる）。
+日本語で回答してください。
 
 ${userPrefsText}
 
@@ -275,33 +339,50 @@ ${userPrefsText}
 バリエーション番号: ${randomSeed}
 
 ${conditions.length > 0 ? `条件:\n- ${conditions.join('\n- ')}` : ''}
-${excludeText}
+${excludeText}`;
 
-以下のJSON形式で回答してください：
-{
-  "recipes": [
-    {
-      "name": "料理名",
-      "emoji": "料理を表す絵文字1つ",
-      "description": "簡単な説明",
-      "cookTime": 調理時間(分、数値),
-      "servings": 人数(数値、通常は2),
-      "ingredients": [{"name": "材料名", "amount": "分量（例：100g、大さじ1、1個など）"}, ...],
-      "steps": ["手順1", "手順2", ...],
-      "matchScore": ふたりの平均マッチ度(0-100),
-      "reason": "なぜこの料理をおすすめするか"
-    }
-  ]
-}
+    const schema = {
+      type: 'object',
+      properties: {
+        recipes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: '料理名' },
+              emoji: { type: 'string', description: '料理を表す絵文字1つ' },
+              description: { type: 'string', description: '簡単な説明' },
+              cookTime: { type: 'integer', description: '調理時間（分）' },
+              servings: { type: 'integer', description: '人数（通常は2）' },
+              ingredients: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    name: { type: 'string', description: '材料名' },
+                    amount: { type: 'string', description: '分量（例：100g、大さじ1、1個など）' },
+                  },
+                  required: ['name', 'amount'],
+                },
+                description: '材料リスト',
+              },
+              steps: {
+                type: 'array',
+                items: { type: 'string' },
+                description: '調理手順',
+              },
+              matchScore: { type: 'integer', description: 'ふたりの平均マッチ度（0-100）' },
+              reason: { type: 'string', description: 'なぜこの料理をおすすめするか' },
+            },
+            required: ['name', 'emoji', 'description', 'cookTime', 'ingredients', 'steps', 'matchScore', 'reason'],
+          },
+          description: '提案レシピリスト（3つ）',
+        },
+      },
+      required: ['recipes'],
+    };
 
-注意:
-- ふたりとも楽しめる料理を優先
-- アレルギー食材は絶対に含めない
-- 毎回異なる料理を提案すること（定番だけでなく珍しい料理も混ぜる）
-- テーマに沿いつつも、ふたりの好みを最優先
-- 日本語で回答してください`;
-
-    const result = await this.callGemini(prompt);
+    const result = await this.callGemini(prompt, undefined, schema);
     return result.recipes || [];
   }
 

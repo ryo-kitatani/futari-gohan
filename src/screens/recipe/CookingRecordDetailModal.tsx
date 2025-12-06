@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   Modal,
   ScrollView,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { CookingRecord, CoupleUser } from '../../interfaces/database';
+import { CookingRecord, CoupleUser, Reaction } from '../../interfaces/database';
+import { ServiceProvider } from '../../services/ServiceProvider';
 
 interface CookingRecordDetailModalProps {
   visible: boolean;
@@ -18,12 +20,50 @@ interface CookingRecordDetailModalProps {
   onClose: () => void;
 }
 
+const REACTION_EMOJIS = ['😍', '😋', '👍', '🔥', '💕'];
+
 export const CookingRecordDetailModal: React.FC<CookingRecordDetailModalProps> = ({
   visible,
   record,
   members = [],
   onClose,
 }) => {
+  const [reactions, setReactions] = useState<Reaction[]>([]);
+  const [loadingReactions, setLoadingReactions] = useState(false);
+  const [addingReaction, setAddingReaction] = useState(false);
+
+  useEffect(() => {
+    if (visible && record?.id) {
+      loadReactions();
+    }
+  }, [visible, record?.id]);
+
+  const loadReactions = async () => {
+    if (!record?.id) return;
+    setLoadingReactions(true);
+    try {
+      const data = await ServiceProvider.coupleService.getReactions(record.id);
+      setReactions(data);
+    } catch (error) {
+      console.error('Error loading reactions:', error);
+    } finally {
+      setLoadingReactions(false);
+    }
+  };
+
+  const handleAddReaction = async (emoji: string) => {
+    if (!record?.id || addingReaction) return;
+    setAddingReaction(true);
+    try {
+      await ServiceProvider.coupleService.addReaction(record.id, emoji);
+      await loadReactions();
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    } finally {
+      setAddingReaction(false);
+    }
+  };
+
   if (!record) return null;
 
   const creator = members.find((m) => m.id === record.createdBy);
@@ -34,6 +74,15 @@ export const CookingRecordDetailModal: React.FC<CookingRecordDetailModalProps> =
         day: 'numeric',
       })
     : '';
+
+  // リアクションをユーザーごとにグループ化
+  const reactionsByUser = reactions.reduce((acc, r) => {
+    const member = members.find((m) => m.id === r.userId);
+    if (member) {
+      acc.push({ ...r, member });
+    }
+    return acc;
+  }, [] as (Reaction & { member: CoupleUser })[]);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
@@ -75,6 +124,44 @@ export const CookingRecordDetailModal: React.FC<CookingRecordDetailModalProps> =
                 <Text style={styles.metaIcon}>📅</Text>
                 <Text style={styles.metaText}>{cookedDate}</Text>
               </View>
+            )}
+          </View>
+
+          {/* Reactions Section */}
+          <View style={styles.reactionSection}>
+            <Text style={styles.sectionTitle}>リアクション</Text>
+
+            {/* Reaction Buttons */}
+            <View style={styles.reactionButtons}>
+              {REACTION_EMOJIS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.reactionButton}
+                  onPress={() => handleAddReaction(emoji)}
+                  disabled={addingReaction}
+                >
+                  <Text style={styles.reactionButtonEmoji}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Existing Reactions */}
+            {loadingReactions ? (
+              <ActivityIndicator size="small" color="#FB923C" style={{ marginTop: 12 }} />
+            ) : reactionsByUser.length > 0 ? (
+              <View style={styles.reactionsList}>
+                {reactionsByUser.map((r) => (
+                  <View key={r.id} style={styles.reactionItem}>
+                    <Text style={styles.reactionUserEmoji}>{r.member.emoji}</Text>
+                    <Text style={styles.reactionEmoji}>{r.emoji}</Text>
+                    {r.comment && (
+                      <Text style={styles.reactionComment}>{r.comment}</Text>
+                    )}
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.noReactionsText}>まだリアクションがありません</Text>
             )}
           </View>
 
@@ -213,8 +300,65 @@ const styles = StyleSheet.create({
     color: '#374151',
     marginBottom: 12,
   },
-  recognitionSection: {
+  reactionSection: {
     backgroundColor: '#FFF7ED',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  reactionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  reactionButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  reactionButtonEmoji: {
+    fontSize: 24,
+  },
+  reactionsList: {
+    marginTop: 16,
+    gap: 8,
+  },
+  reactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  reactionUserEmoji: {
+    fontSize: 16,
+  },
+  reactionEmoji: {
+    fontSize: 20,
+  },
+  reactionComment: {
+    fontSize: 13,
+    color: '#6B7280',
+    flex: 1,
+  },
+  noReactionsText: {
+    marginTop: 12,
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+  recognitionSection: {
+    backgroundColor: '#F3F4F6',
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
@@ -224,7 +368,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#FED7AA',
+    borderBottomColor: '#E5E7EB',
   },
   recognitionLabel: {
     fontSize: 14,
