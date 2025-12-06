@@ -102,9 +102,8 @@ export const UrlImportModal: React.FC<UrlImportModalProps> = ({ visible, onClose
         ingredients: result.ingredients,
       });
 
-      Alert.alert('保存完了', 'レシピを保存しました！', [
-        { text: 'OK', onPress: handleClose },
-      ]);
+      Alert.alert('保存完了', 'レシピを保存しました！');
+      handleClose();
     } catch (error) {
       console.error('Error saving recipe:', error);
       Alert.alert('エラー', '保存に失敗しました');

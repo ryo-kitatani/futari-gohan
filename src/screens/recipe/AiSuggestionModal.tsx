@@ -71,9 +71,9 @@ export const AiSuggestionModal: React.FC<AiSuggestionModalProps> = ({
         ingredients,
       });
 
-      Alert.alert('保存完了', 'レシピを保存しました！', [
-        { text: 'OK', onPress: () => { onSaved(); onClose(); } },
-      ]);
+      Alert.alert('保存完了', 'レシピを保存しました！');
+      onSaved();
+      onClose();
     } catch (error) {
       console.error('Error saving recipe:', error);
       Alert.alert('エラー', '保存に失敗しました');
@@ -96,9 +96,9 @@ export const AiSuggestionModal: React.FC<AiSuggestionModalProps> = ({
         createdBy: dbUser.id,
       });
 
-      Alert.alert('記録完了', '料理を記録しました！', [
-        { text: 'OK', onPress: () => { onSaved(); onClose(); } },
-      ]);
+      Alert.alert('記録完了', '料理を記録しました！');
+      onSaved();
+      onClose();
     } catch (error) {
       console.error('Error saving record:', error);
       Alert.alert('エラー', '記録に失敗しました');
