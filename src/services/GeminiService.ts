@@ -51,6 +51,10 @@ export class GeminiService {
   }
 
   private async callGemini(prompt: string, imageBase64?: string): Promise<any> {
+    if (!this.apiKey) {
+      throw new Error('Gemini API key is not configured');
+    }
+
     const parts: any[] = [{ text: prompt }];
 
     if (imageBase64) {
@@ -76,17 +80,51 @@ export class GeminiService {
     });
 
     if (!response.ok) {
-      throw new Error(`Gemini API error: ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Gemini API error response:', errorText);
+      throw new Error(`Gemini API error: ${response.status} ${response.statusText}`);
     }
 
     const data = await response.json();
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
+      console.error('Gemini response:', JSON.stringify(data, null, 2));
       throw new Error('No response from Gemini');
     }
 
-    return JSON.parse(text);
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error('Failed to parse Gemini response:', text);
+      throw new Error('Invalid JSON response from Gemini');
+    }
+  }
+
+  private async fetchUrlContent(url: string): Promise<string> {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; FutariGohan/1.0)',
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch URL: ${response.status}`);
+      }
+      const html = await response.text();
+      // HTMLからテキストを簡易抽出（scriptとstyleタグを除去）
+      const textContent = html
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 10000); // 最大10000文字
+      return textContent;
+    } catch (error) {
+      console.error('Error fetching URL:', error);
+      throw new Error(`URLの取得に失敗しました: ${url}`);
+    }
   }
 
   async recognizePhoto(imageBase64: string): Promise<PhotoRecognitionResult> {
@@ -118,6 +156,9 @@ export class GeminiService {
       };
     }>
   ): Promise<RecipeParseResult> {
+    // まずURLの内容を取得
+    const urlContent = await this.fetchUrlContent(url);
+
     const userPrefsText = users
       .map(
         (u) => `${u.name}の好み:
@@ -127,8 +168,12 @@ export class GeminiService {
       )
       .join('\n\n');
 
-    const prompt = `以下のレシピURLの内容を解析してください: ${url}
+    const prompt = `以下のレシピページの内容を解析してください。
 
+【レシピページの内容】
+${urlContent}
+
+【ユーザーの好み】
 ${userPrefsText}
 
 以下のJSON形式で回答してください：
@@ -156,6 +201,7 @@ ${userPrefsText}
 注意:
 - アレルギー食材が含まれている場合は必ずwarningsに追加
 - マッチ度は好きな食材が多いほど高く、嫌いな食材があると低くなる
+- warningsがない場合は空配列[]を返す
 - 日本語で回答してください`;
 
     return this.callGemini(prompt);
