@@ -113,4 +113,18 @@ export class CoupleService {
   async createRecord(recordData: Parameters<DatabaseProvider['createRecord']>[0]) {
     return this.database.createRecord(recordData);
   }
+
+  // Photo upload
+  async uploadPhoto(fileUri: string): Promise<string> {
+    const dbUser = await this.getOrCreateDbUser();
+    if (!dbUser?.coupleId) throw new Error('User not in a couple');
+
+    // SupabaseProvider固有のメソッドを呼び出す
+    const provider = this.database as any;
+    if (typeof provider.uploadPhoto !== 'function') {
+      throw new Error('Photo upload not supported');
+    }
+
+    return provider.uploadPhoto(fileUri, dbUser.coupleId);
+  }
 }

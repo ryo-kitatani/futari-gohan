@@ -117,11 +117,23 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
           { text: 'OK', onPress: handleClose },
         ]);
       } else {
+        // 画像をアップロード
+        let photoUrl: string | undefined;
+        if (image) {
+          try {
+            photoUrl = await ServiceProvider.coupleService.uploadPhoto(image);
+          } catch (uploadError) {
+            console.error('Photo upload failed:', uploadError);
+            // アップロード失敗しても記録は保存する
+          }
+        }
+
         // 料理記録として保存
         await ServiceProvider.coupleService.createRecord({
           coupleId: dbUser.coupleId,
           dishName: recognized.dishName,
           emoji: recognized.emoji,
+          photoUrl,
           photoRecognition: recognized,
           cookedAt: new Date().toISOString(),
           createdBy: dbUser.id,
@@ -151,7 +163,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ visible, onClose }) =>
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <View style={styles.headerTitle}>
             <Text style={styles.title}>📸 写真で記録</Text>
@@ -347,6 +359,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   imageArea: {
+    width: '100%',
     aspectRatio: 4 / 3,
     backgroundColor: '#FFF7ED',
     borderRadius: 16,
@@ -502,6 +515,7 @@ const styles = StyleSheet.create({
   },
   reactionButtons: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 12,
   },
   reactionButton: {

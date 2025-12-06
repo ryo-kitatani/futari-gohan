@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   DatabaseProvider,
   Couple,
@@ -576,5 +577,38 @@ export class SupabaseProvider implements DatabaseProvider {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
+  }
+
+  // Storage operations
+  async uploadPhoto(fileUri: string, coupleId: string): Promise<string> {
+    const fileName = `${coupleId}/${Date.now()}.jpg`;
+
+    // ファイルをbase64で読み込み
+    const base64 = await FileSystem.readAsStringAsync(fileUri, {
+      encoding: 'base64',
+    });
+
+    // base64をUint8Arrayに変換
+    const binaryString = atob(base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const { data, error } = await this.supabase.storage
+      .from('cooking-photos')
+      .upload(fileName, bytes.buffer, {
+        contentType: 'image/jpeg',
+        upsert: false,
+      });
+
+    if (error) throw error;
+
+    // 公開URLを取得
+    const { data: publicUrlData } = this.supabase.storage
+      .from('cooking-photos')
+      .getPublicUrl(fileName);
+
+    return publicUrlData.publicUrl;
   }
 }

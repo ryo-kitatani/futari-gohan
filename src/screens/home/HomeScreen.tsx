@@ -15,6 +15,7 @@ import { PairingBanner } from '../../components/recipe/PairingBanner';
 import { RecipeCard } from '../../components/recipe/RecipeCard';
 import { RecipeDetailModal } from '../recipe/RecipeDetailModal';
 import { AiSuggestionModal } from '../recipe/AiSuggestionModal';
+import { CookingRecordDetailModal } from '../recipe/CookingRecordDetailModal';
 import { ServiceProvider } from '../../services/ServiceProvider';
 import { GeminiService } from '../../services/GeminiService';
 import { CoupleUser, Recipe, Preference, CookingRecord } from '../../interfaces/database';
@@ -36,6 +37,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl,
   const [refreshing, setRefreshing] = useState(false);
   const [loadingAi, setLoadingAi] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<CookingRecord | null>(null);
   const [showAiDetail, setShowAiDetail] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -241,7 +243,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl,
                     })
                   : '';
                 return (
-                  <View key={record.id || `record-${index}`} style={styles.recordCard}>
+                  <TouchableOpacity
+                    key={record.id || `record-${index}`}
+                    style={styles.recordCard}
+                    onPress={() => setSelectedRecord(record)}
+                    activeOpacity={0.7}
+                  >
                     <View style={styles.recordEmoji}>
                       <Text style={styles.recordEmojiText}>{record.emoji || '🍽️'}</Text>
                     </View>
@@ -253,7 +260,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl,
                         {creator?.emoji || '👤'} {date}
                       </Text>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </ScrollView>
@@ -314,6 +321,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onOpenCamera, onOpenUrl,
         suggestion={aiSuggestion}
         onClose={() => setShowAiDetail(false)}
         onSaved={loadData}
+      />
+
+      {/* Cooking Record Detail Modal */}
+      <CookingRecordDetailModal
+        visible={!!selectedRecord}
+        record={selectedRecord}
+        members={members}
+        onClose={() => setSelectedRecord(null)}
       />
     </SafeAreaView>
   );
